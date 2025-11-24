@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+
+body {
+  @apply bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 min-h-screen;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+}
+.container {
+  @apply mx-auto max-w-6xl px-4 py-6;
+}
+.card {
+  @apply bg-white/90 rounded-2xl p-4 shadow-md;
+}
+
+
+
+
+
+
+@keyframes gradient-fast {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.animate-gradient-fast {
+  background-size: 200% 200%;
+  animation: gradient-fast 10s ease infinite;
+}
