@@ -26,3 +26,37 @@ body {
   background-size: 200% 200%;
   animation: gradient-fast 10s ease infinite;
 }
+
+.blob1 {
+  position: absolute;
+  top: -150px;
+  right: -150px;
+  width: 350px;
+  height: 350px;
+  background: radial-gradient(circle, rgba(255,0,200,0.5), transparent);
+  filter: blur(100px);
+  z-index: -10;
+  animation: blobFloat1 10s infinite ease-in-out;
+}
+
+.blob2 {
+  position: absolute;
+  bottom: -170px;
+  left: -150px;
+  width: 350px;
+  height: 350px;
+  background: radial-gradient(circle, rgba(0,150,255,0.5), transparent);
+  filter: blur(100px);
+  z-index: -10;
+  animation: blobFloat2 12s infinite ease-in-out;
+}
+
+@keyframes blobFloat1 {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(40px) scale(1.1); }
+}
+
+@keyframes blobFloat2 {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-40px) scale(1.1); }
+}

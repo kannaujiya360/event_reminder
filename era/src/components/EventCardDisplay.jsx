@@ -7,42 +7,68 @@ export default function EventCardDisplay({ ev }) {
   const imageSrc = ev.imageUrl
     ? ev.imageUrl.startsWith('http')
       ? ev.imageUrl
-      : `http://localhost:4000${ev.imageUrl}`
+      : `https://event-reminder-backend-p0gb.onrender.com${ev.imageUrl}`
     : '/placeholder.png';
 
   return (
     <motion.div
-      whileHover={{ y: -5, scale: 1.04 }}
-      className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 border-2 border-gradient-to-r from-purple-400 via-pink-400 to-indigo-400"
+      initial={{ opacity: 0, y: 30, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      whileHover={{
+        y: -15,
+        scale: 1.08,
+        rotateZ: 2,
+        boxShadow: '0 20px 40px rgba(124,58,237,0.6), 0 0 30px rgba(255,45,255,0.4)',
+      }}
+      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+      className="relative rounded-3xl overflow-hidden cursor-pointer"
       style={{
-        borderImageSlice: 1,
-        borderWidth: '2px',
-        borderStyle: 'solid'
+        background: 'linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.15))',
+        backdropFilter: 'blur(14px)',
+        border: '1px solid rgba(255,255,255,0.25)',
       }}
     >
+      {/* Glow rings */}
+      <motion.div
+        className="absolute inset-0 rounded-3xl pointer-events-none"
+        animate={{ boxShadow: ['0 0 20px rgba(124,58,237,0.2)', '0 0 40px rgba(124,58,237,0.4)', '0 0 20px rgba(124,58,237,0.2)'] }}
+        transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
+      />
+
+      {/* Event Image */}
       <img
         src={imageSrc}
         alt={ev.title}
-        className="w-full h-40 sm:h-44 md:h-48 object-cover"
+        className="w-full h-44 sm:h-48 md:h-52 object-cover rounded-t-3xl"
       />
-      <div className="p-3 sm:p-4 flex flex-col gap-1">
-        <h3 className="text-lg sm:text-xl font-semibold line-clamp-1 text-gray-900">
+
+      {/* Event Info */}
+      <div className="p-4 flex flex-col gap-2">
+        <h3 className="text-lg sm:text-xl font-extrabold text-white line-clamp-1">
           {ev.title}
         </h3>
-        <p className="text-gray-700 text-sm line-clamp-2">
+        <p className="text-white/80 text-sm line-clamp-2">
           {ev.description || 'No description'}
         </p>
-        <p className="text-gray-500 text-xs">{dateStr}</p>
+        <p className="text-white/50 text-xs">{dateStr}</p>
         <span
-          className={`px-2 py-1 rounded-full text-xs font-medium mt-1 ${
+          className={`px-3 py-1 rounded-full text-xs font-bold mt-2 w-max ${
             ev.status === 'upcoming'
-              ? 'bg-green-100 text-green-800'
-              : 'bg-gray-200 text-gray-800'
+              ? 'bg-green-500/30 text-green-300'
+              : 'bg-gray-200/20 text-gray-300'
           }`}
         >
           {ev.status}
         </span>
       </div>
+
+      {/* Neon border pulse */}
+      <motion.div
+        className="absolute -inset-0.5 rounded-3xl pointer-events-none"
+        style={{ border: '2px solid rgba(124,58,237,0.4)' }}
+        animate={{ opacity: [0.6, 1, 0.6] }}
+        transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut' }}
+      />
     </motion.div>
   );
 }

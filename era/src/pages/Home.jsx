@@ -1,221 +1,384 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import sampleVideo from '../assets/event.mp4';
-import { getEvents } from '../api/events';
-import EventCard from '../components/EventCardDisplay';
+
+import React, { useRef, useEffect, useState, Suspense } from "react";
+import { Link } from "react-router-dom";
+import { Canvas, useFrame } from "@react-three/fiber";
+import { OrbitControls, Stars, Sphere, MeshDistortMaterial } from "@react-three/drei";
+import { motion, AnimatePresence } from "framer-motion";
+import { getEvents } from "../api/events";
+import EventCard from "../components/EventCardDisplay";
 
 
-function WeatherWidget() {
-  const [weather, setWeather] = React.useState(null);
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState('');
+const fadeIn = { opacity: 0, y: 14 };
+const fadeInTo = { opacity: 1, y: 0 };
 
-  const API_KEY = 'bcbdce1de7ddfb288a93a75fa42824f6'; // OpenWeatherMap API key
-  const DEFAULT_CITY = { lat: 28.6139, lon: 77.2090 }; 
-  React.useEffect(() => {
-    const fetchWeather = async () => {
-      try {
-        setLoading(true);
 
-        const fetchByCoords = async (lat, lon) => {
-          const res = await fetch(
-            `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${API_KEY}`
-          );
-          const data = await res.json();
-          setWeather({
-            city: data.name,
-            temp: Math.round(data.main.temp),
-            condition: data.weather[0].main,
-            icon: `https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`,
-          });
-          setLoading(false);
-        };
-
-        if (navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition(
-            (position) => {
-              const { latitude, longitude } = position.coords;
-              fetchByCoords(latitude, longitude);
-            },
-            () => {
-              
-              fetchByCoords(DEFAULT_CITY.lat, DEFAULT_CITY.lon);
-            }
-          );
-        } else {
-          
-          fetchByCoords(DEFAULT_CITY.lat, DEFAULT_CITY.lon);
-        }
-      } catch (err) {
-        console.error(err);
-        setError('Failed to fetch weather');
-        setLoading(false);
-      }
-    };
-    fetchWeather();
-  }, []);
-
-  if (loading) return <p className="text-white/80">Loading weather...</p>;
-  if (error) return <p className="text-red-400">{error}</p>;
-
-  return (
-    <motion.div
-      className="flex items-center gap-3 p-3 bg-white/20 backdrop-blur-lg rounded-xl shadow-lg text-white w-max"
-      initial={{ opacity: 0, y: -20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.8 }}
-    >
-      <img src={weather.icon} alt={weather.condition} className="w-12 h-12" />
-      <div className="flex flex-col">
-        <span className="text-lg font-semibold">{weather.temp}°C</span>
-        <span className="text-sm">{weather.city}</span>
-      </div>
-    </motion.div>
-  );
-}
-
-// Clock Component
-function Clock() {
-  const [time, setTime] = React.useState(new Date());
-  React.useEffect(() => {
+function ClockNeon() {
+  const [time, setTime] = useState(new Date());
+  useEffect(() => {
     const id = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
   return (
     <motion.div
-      className="text-4xl md:text-5xl font-mono text-white drop-shadow-[0_0_25px_rgba(0,0,0,0.8)] mt-2"
-      animate={{ scale: [1, 1.08, 1] }}
-      transition={{ repeat: Infinity, duration: 1.2, ease: 'easeInOut' }}
+      animate={{ scale: [1, 1.025, 1], opacity: [0.92, 1, 0.92] }}
+      transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
+      className="font-mono text-2xl md:text-3xl text-white"
+      style={{ textShadow: "0 0 6px #00eaff, 0 0 12px #7C3AED, 0 0 20px #ff007a" }}
     >
       {time.toLocaleTimeString()}
     </motion.div>
   );
 }
 
-export default function Home() {
-  const [events, setEvents] = React.useState([]);
-  const [loading, setLoading] = React.useState(false);
 
-  React.useEffect(() => {
-    fetchEvents();
+function WeatherNeon() {
+  const [weather, setWeather] = useState(null);
+  const API_KEY = "bcbdce1de7ddfb288a93a75fa42824f6";
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchBy = async (lat, lon) => {
+      try {
+        const res = await fetch(
+          `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${API_KEY}`
+        );
+        const json = await res.json();
+        if (!mounted) return;
+        setWeather({
+          city: json.name,
+          temp: Math.round(json.main.temp),
+          icon: `https://openweathermap.org/img/wn/${json.weather[0].icon}@2x.png`,
+        });
+      } catch {}
+    };
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (p) => fetchBy(p.coords.latitude, p.coords.longitude),
+        () => fetchBy(28.6139, 77.2090)
+      );
+    } else fetchBy(28.6139, 77.2090);
+
+    return () => (mounted = false);
   }, []);
 
-  const fetchEvents = async () => {
-    setLoading(true);
-    try {
-      const res = await getEvents();
-      setEvents(res.data);
-    } catch (err) {
-      console.error('Failed to fetch events', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const upcomingEvents = events.filter(ev => ev.status === 'upcoming');
+  if (!weather) return <div className="text-gray-400">Loading weather…</div>;
 
   return (
-    <div className="min-h-screen relative flex flex-col items-center justify-start p-6 overflow-hidden">
+    <motion.div
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6 }}
+      className="flex items-center gap-3 px-3 py-2 rounded-2xl"
+      style={{
+        backdropFilter: "blur(8px)",
+        background: "rgba(0,0,0,0.5)",
+        border: "1px solid rgba(255,255,255,0.1)",
+        boxShadow: "0 4px 20px rgba(0,234,255,0.2)",
+      }}
+    >
+      <img src={weather.icon} alt="w" className="w-10 h-10" />
+      <div className="flex flex-col">
+        <span className="text-white font-semibold">{weather.temp}°C</span>
+        <span className="text-gray-300 text-sm">{weather.city}</span>
+      </div>
+    </motion.div>
+  );
+}
 
-   
-      <div className="absolute inset-0 bg-gradient-to-tr from-indigo-700 via-purple-700 to-pink-600 animate-gradient-fast -z-20"></div>
-      <div className="absolute inset-0 bg-black/50 -z-10"></div>
 
-    
-      <motion.div
-        className="container max-w-7xl flex flex-col md:flex-row items-center gap-12 backdrop-blur-xl bg-white/5 rounded-3xl shadow-[0_30px_90px_rgba(255,255,255,0.2)] p-12 mt-12"
-        initial={{ opacity: 0, y: 80 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 1 }}
-      >
-      
-        <div className="flex-1 text-center md:text-left text-white space-y-6">
-          <motion.h1
-            className="text-7xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-purple-300 via-pink-400 to-indigo-400 drop-shadow-lg"
-            initial={{ x: -80, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            transition={{ delay: 0.2, duration: 1 }}
+function HologramOrb({ position = [0, 0, -4] }) {
+  const group = useRef();
+  const ring1 = useRef();
+  const ring2 = useRef();
+  const scan = useRef();
+
+  useFrame(({ clock }) => {
+    const t = clock.getElapsedTime();
+    if (group.current) {
+      group.current.rotation.y = t * 0.25;
+      group.current.position.y = Math.sin(t * 0.6) * 0.12;
+    }
+    if (ring1.current) ring1.current.rotation.z = t * 0.6;
+    if (ring2.current) ring2.current.rotation.z = -t * 0.4;
+    if (scan.current) {
+      scan.current.position.y = Math.sin(t * 1.8) * 0.8;
+      scan.current.material.opacity = 0.18 + (Math.sin(t * 1.8) + 1) * 0.06;
+    }
+  });
+
+  return (
+    <group ref={group} position={position}>
+      <Sphere args={[1.05, 128, 128]}>
+        <MeshDistortMaterial
+          color="#00eaff"
+          distort={0.45}
+          speed={1.6}
+          roughness={0.12}
+          metalness={0.3}
+          emissive="#00eaff"
+          emissiveIntensity={0.6}
+        />
+      </Sphere>
+
+      <mesh>
+        <sphereGeometry args={[1.18, 64, 64]} />
+        <meshStandardMaterial
+          transparent
+          opacity={0.08}
+          roughness={0.1}
+          metalness={0.2}
+          emissive="#7cc1ff"
+          emissiveIntensity={0.08}
+        />
+      </mesh>
+
+      <mesh ref={ring1} rotation={[Math.PI / 2.2, 0, 0]}>
+        <torusGeometry args={[1.5, 0.02, 8, 200]} />
+        <meshStandardMaterial emissive="#ff007a" emissiveIntensity={0.9} color="#ff007a" />
+      </mesh>
+
+      <mesh ref={ring2} rotation={[Math.PI / 3.2, 0.2, 0]}>
+        <torusGeometry args={[1.85, 0.018, 8, 200]} />
+        <meshStandardMaterial emissive="#7c3aed" emissiveIntensity={0.75} color="#7c3aed" />
+      </mesh>
+
+      <mesh ref={scan}>
+        <planeGeometry args={[3.4, 0.08, 1, 1]} />
+        <meshBasicMaterial transparent opacity={0.16} color="#00eaff" />
+      </mesh>
+    </group>
+  );
+}
+
+
+function HeroCanvas() {
+  return (
+    <Canvas
+      camera={{ position: [0, 0, 12], fov: 55 }}
+      style={{ width: "100%", height: "100%", pointerEvents: "none" }}
+      gl={{ antialias: true, alpha: true }}
+    >
+      <ambientLight intensity={0.6} />
+      <directionalLight position={[6, 6, 6]} intensity={0.8} />
+      <Suspense fallback={null}>
+        <HologramOrb />
+      </Suspense>
+      <Stars radius={130} depth={40} count={2000} factor={4} fade />
+      <OrbitControls enableZoom={false} enablePan={false} enableRotate={false} />
+    </Canvas>
+  );
+}
+
+
+export default function Home() {
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    async function load() {
+      setLoading(true);
+      try {
+        const res = await getEvents();
+        if (!mounted) return;
+        setEvents(res?.data ?? res?.events ?? res ?? []);
+      } catch (err) {
+        console.error("Failed to fetch events", err);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+    load();
+    return () => (mounted = false);
+  }, []);
+
+  const upcomingEvents = Array.isArray(events) ? events.filter((e) => e.status === "upcoming") : [];
+
+  return (
+    <div className="min-h-screen w-full relative overflow-hidden bg-black/95">
+      <div className="absolute inset-0 -z-20">
+        <HeroCanvas />
+      </div>
+
+      <div className="container mx-auto px-6 py-20 relative z-10">
+     
+        <motion.section
+          initial={fadeIn}
+          animate={fadeInTo}
+          transition={{ duration: 0.9 }}
+          className="w-full max-w-6xl mx-auto rounded-3xl relative overflow-visible"
+        >
+          <div
+            className="grid grid-cols-1 md:grid-cols-2 gap-8 p-8 md:p-12 rounded-3xl"
+            style={{
+              background: "linear-gradient(135deg, rgba(15,15,25,0.9), rgba(30,30,45,0.85))",
+              backdropFilter: "blur(12px)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              boxShadow: "0 20px 60px rgba(0,234,255,0.15)",
+            }}
           >
-            Event Reminder
-          </motion.h1>
+           
+            <div className="flex flex-col justify-center items-start gap-6">
+              <h1
+                className="text-4xl md:text-6xl font-extrabold leading-tight"
+                style={{
+                  background: "none",
+                  color: "white",
+                  textShadow: "0 0 2px #00eaff, 0 0 6px #7C3AED, 0 0 10px #ff007a",
+                }}
+              >
+                Remember every moment.
+                <span className="block">Effortlessly.</span>
+              </h1>
 
-          <motion.p
-            className="text-2xl text-white/90"
-            initial={{ x: -60, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            transition={{ delay: 0.4, duration: 1 }}
-          >
-            Track your events. Get reminders. Never miss anything important again.
-          </motion.p>
+              <p className="text-gray-300 max-w-xl">
+                Smart reminders, contextual alerts, and a futuristic visual layer — designed to keep your focus and memory sharp.
+              </p>
 
-        
-          <div className="flex gap-6 justify-center md:justify-start mt-6">
-            <Clock />
-            <WeatherWidget />
+              <div className="flex items-center gap-4">
+                <div className="rounded-xl p-2" style={{ background: "rgba(255,255,255,0.05)" }}>
+                  <ClockNeon />
+                </div>
+                <WeatherNeon />
+              </div>
+
+              <div className="flex gap-4 mt-4">
+                <motion.div whileHover={{ scale: 1.05 }}>
+                  <Link
+                    to="/signup"
+                    className="px-6 py-3 rounded-full font-semibold text-white"
+                    style={{
+                      background: "linear-gradient(90deg,#00eaff,#ff007a,#7C3AED)",
+                      boxShadow: "0 10px 40px rgba(0,234,255,0.3)",
+                    }}
+                  >
+                    Get Started
+                  </Link>
+                </motion.div>
+
+                <motion.div whileHover={{ scale: 1.03 }}>
+                  <Link
+                    to="/login"
+                    className="px-6 py-3 rounded-full font-medium text-gray-300"
+                    style={{
+                      background: "linear-gradient(90deg,#1f1f2f,#2b2b42)",
+                      border: "1px solid rgba(255,255,255,0.15)",
+                      backdropFilter: "blur(6px)",
+                      boxShadow: "0 6px 20px rgba(0,234,255,0.1)",
+                    }}
+                  >
+                    Login
+                  </Link>
+                </motion.div>
+              </div>
+            </div>
+
+           
+            <div className="flex items-center justify-center">
+              <div
+                className="w-full max-w-md h-80 md:h-96 rounded-2xl flex items-center justify-center"
+                style={{
+                  background: "linear-gradient(180deg, rgba(15,15,25,0.7), rgba(30,30,45,0.8))",
+                  border: "1px solid rgba(124,58,237,0.2)",
+                  boxShadow: "0 30px 90px rgba(124,58,237,0.1)",
+                }}
+              >
+                <div className="text-center px-4">
+                  <div
+                    style={{
+                      width: 110,
+                      height: 110,
+                      margin: "0 auto",
+                      borderRadius: "50%",
+                      background: "radial-gradient(circle at 30% 20%, rgba(0,234,255,0.2), rgba(124,58,237,0.2))",
+                      boxShadow: "0 12px 50px rgba(124,58,237,0.2)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <div style={{ width: 54, height: 54, borderRadius: "50%", background: "#00eaff" }} />
+                  </div>
+
+                  <div className="text-white font-semibold text-xl mt-4">Time is precious don’t miss this</div>
+                  <div className="text-gray-400 text-sm mt-2">Something good for a time reminder.</div>
+                </div>
+              </div>
+            </div>
           </div>
-
-          <motion.div
-            className="flex gap-6 justify-center md:justify-start mt-6"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.6 }}
-          >
-            <Link
-              to="/signup"
-              className="px-12 py-4 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white font-bold rounded-3xl shadow-[0_0_30px_rgba(255,255,255,0.5)] hover:scale-105 transition-transform"
-            >
-              Get Started
-            </Link>
-            <Link
-              to="/login"
-              className="px-12 py-4 border border-white rounded-3xl hover:bg-white/20 transition-colors"
-            >
-              Login
-            </Link>
-          </motion.div>
-        </div>
+        </motion.section>
 
        
-        <motion.div
-          className="flex-1 flex justify-center md:justify-end mt-8 md:mt-0"
-          initial={{ scale: 0.95, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 0.5, duration: 1 }}
+        <motion.section
+          className="w-full max-w-6xl mt-12 rounded-3xl p-8"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          style={{
+            background: "rgba(15,15,25,0.85)",
+            backdropFilter: "blur(12px)",
+            border: "1px solid rgba(255,255,255,0.05)",
+          }}
         >
-          <motion.div
-            className="w-full md:w-[520px] h-[380px] rounded-3xl overflow-hidden shadow-[0_35px_100px_rgba(255,255,255,0.25)] border border-white/20"
-            animate={{ y: [0, -20, 0] }}
-            transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}
-          >
-            <video
-              src={sampleVideo}
-              autoPlay
-              loop
-              muted
-              className="w-full h-full object-cover rounded-3xl"
-            />
-          </motion.div>
-        </motion.div>
-      </motion.div>
+          <div className="flex items-center justify-between mb-6">
+            <h3
+              className="text-3xl font-bold"
+              style={{
+                backgroundImage: "linear-gradient(90deg,#00eaff,#ff007a,#7C3AED)",
+                WebkitBackgroundClip: "text",
+                color: "transparent",
+              }}
+            >
+              Upcoming Events
+            </h3>
 
-   
-      <div className="container max-w-7xl mt-16 bg-white rounded-3xl p-6 shadow-lg z-10 relative">
-        <h2 className="text-3xl font-bold mb-6 text-gray-800">Upcoming Events</h2>
-        {loading ? (
-          <p className="text-gray-600">Loading events...</p>
-        ) : upcomingEvents.length > 0 ? (
-          <motion.div
-            layout
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
-          >
-            {upcomingEvents.map(ev => (
-              <EventCard key={ev._id} ev={ev} />
-            ))}
-          </motion.div>
-        ) : (
-          <p className="text-gray-600">No upcoming events.</p>
-        )}
+            <div className="text-sm text-gray-400">Tap to open an event</div>
+          </div>
+
+          <AnimatePresence>
+            {loading ? (
+              <div className="py-12 text-gray-400 text-lg">Loading events…</div>
+            ) : upcomingEvents.length ? (
+              <motion.div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {upcomingEvents.map((ev, i) => (
+                  <motion.div
+                    key={ev._id ?? i}
+                    initial={{ scale: 0.98, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    whileHover={{ y: -6, scale: 1.02 }}
+                    transition={{ type: "spring", stiffness: 260, damping: 22 }}
+                  >
+                    <div
+                      className="rounded-2xl overflow-hidden relative"
+                      style={{
+                        background: "rgba(15,15,25,0.7)",
+                        border: "1px solid rgba(255,255,255,0.05)",
+                        backdropFilter: "blur(10px)",
+                      }}
+                    >
+                      <div
+                        style={{
+                          position: "absolute",
+                          left: 0,
+                          top: 10,
+                          bottom: 10,
+                          width: 6,
+                          background: "linear-gradient(180deg,#00eaff,#7C3AED)",
+                          borderRadius: 10,
+                        }}
+                      />
+                      <div style={{ padding: 14, marginLeft: 18 }}>
+                        <EventCard ev={ev} />
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </motion.div>
+            ) : (
+              <div className="py-12 text-gray-400 text-xl text-center">No upcoming events.</div>
+            )}
+          </AnimatePresence>
+        </motion.section>
       </div>
     </div>
   );
